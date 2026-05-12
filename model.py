@@ -85,6 +85,7 @@ class DeepFM(nn.Module):
         # x: [batch, field_size]
 
         # linear part
+        # add for all embedding dimensions
         linear_part = self.linear(x).sum(dim = 1)
 
         # embedding
@@ -113,13 +114,18 @@ class DeepFM(nn.Module):
         ).sum(dim = 1, keepdim = True)  # sum at the dim 1,  -> [batch, 1]
 
         # deep part
+        # reshape and flattern: [batch, field_size * embedding_dim]
         deep_input = embeddings.view(
-            embeddings.size(0),
-            -1
+            embeddings.size(0),   # batch size
+            -1                    # calculate by itself
         )
+            # use the dnn to learn
         deep_part = self.mlp(deep_input)
 
         # output
+                # linear : first order direclty add weight of each feature- independent influence
+                # fm: second order feature interaction, add the interaction multiplication of each feature
+                # deep: high order feature non-linear interaction
         output = linear_part + fm_part + deep_part
 
         return torch.sigmoid(
