@@ -128,6 +128,8 @@ class DeepFM(nn.Module):
                 # deep: high order feature non-linear interaction
         output = linear_part + fm_part + deep_part
 
+        # change to the pobabibility between 0 and 1
+        # squeeze: remove the dimension with size 1, [batch, 1] -> [batch]
         return torch.sigmoid(
             output.squeeze()
         )
