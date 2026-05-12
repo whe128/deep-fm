@@ -5,12 +5,23 @@ import torch.nn as nn
 class DeepFM(nn.Module):
     def __init__(
             self,
-            num_features,
-            field_size,
+            field_dims,   # [100, 100, 100] - the number of unique values for each feature
             embedding_dim = 8
     ):
 
         super().__init__()
+        num_features = sum(field_dims)  # total number of unique features, 300 in this case
+        field_size = len(field_dims)
+
+        # offsets, not put in model parameters
+        # may train in different case, cpu or gpu
+        # if it is put in model parameters, it will be updated during training, and it will be a problem when i train in different case, cpu or gpu
+        self.register_buffer(
+            'offsets',
+            torch.tensor([0, *field_dims[:-1]]).cumsum(dim = 0)
+            # get the offsets for each feature, [0, 100, 200]
+            # * is depackage operator, other wise will [0, [100, 100]]
+        )
 
         # --------------------------------
         # Linear Part
@@ -84,6 +95,11 @@ class DeepFM(nn.Module):
     def forward(self, x):
         # x: [batch, field_size]
 
+        # add the offsets to the input x, to get the correct feature index for embedding
+        # for example, the first feature is user_id, the second feature is item_id,
+        # [1, 2, 3] -> [1, 102, 203]   the feature index for embedding
+        x = x + self.offsets
+
         # linear part
         # add for all embedding dimensions
         linear_part = self.linear(x).sum(dim = 1)
@@ -130,6 +146,9 @@ class DeepFM(nn.Module):
 
         # change to the pobabibility between 0 and 1
         # squeeze: remove the dimension with size 1, [batch, 1] -> [batch]
-        return torch.sigmoid(
-            output.squeeze()
-        )
+        # return torch.sigmoid(
+        #     output.squeeze()
+        # )
+
+        # i used the BCEWithLogitsLoss, and do not need add sigmoid here
+        return output.squeeze()
